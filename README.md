@@ -1,15 +1,14 @@
-# hjowdy
+# Hjowdy
 
-A simple Rust API that uses the Actix web framework and the Reqwest HTTP client library to call the OpenAI API and generate text completions based on prompts. The project defines an endpoint `/Response/{request_prompt}` that takes a prompt string as a parameter and returns a generated response from the OpenAI API.
+A Rust-based HTTP server and API wrapper that provides a single API endpoint for interacting with the OpenAI GPT-3 API. The server responds to POST requests with a JSON object containng
+a prompt and returns the generated text from OpenAI's GPT-3 model (e.g., text-davinci-003) or a fine tuning
+model of your own.
 
-## Prerequisites
-
-- Rust
-- OpenAI API key (to access the OpenAI API)
+This server can be used for a starting point for building more complex applications that incorporate OpenAI's API.
 
 ## Installation
 
-1. Clone the repository: `git clone https://github.com/your-username/hjowdy.git`
+1. Clone the repository: `git clone https://github.com/iamgreggarcia/hjowdy.git`
 2. Navigate to the project directory: `cd hjowdy`
 3. Set your OpenAI API key as an environment variable named `OPENAI_API_KEY`.
 4. Run the project with `cargo run`.

@@ -43,13 +43,15 @@ impl Error for OpenAIError {}
 
 async fn call_openai_api(prompt: String) -> Result<String, Box<dyn Error>> {
     let openai_url = "https://api.openai.com/v1/completions";
+    // Set model to your fine-tuned or preferred model. See https://beta.openai.com/docs/developer-quickstart for more information.
+    // Note: if using e.g. text-davinci-003, consider making a base prompt to warm up the model.
+    // The append the user prompt to the base prompt
     let model = "davinci:ft-personal-2023-02-26-04-40-43";
 
 
-    let prompt_body =  format!("{}", prompt);
     let openai_request = OpenAIRequest {
         model: model.to_string(),
-        prompt: prompt_body,
+        prompt:prompt,
         max_tokens: 300,
         n: 1,
         temperature: 0.9,

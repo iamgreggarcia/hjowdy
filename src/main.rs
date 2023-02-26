@@ -94,8 +94,13 @@ async fn response(body: web::Json<PromptRequestBody>) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new().service(response))
-        .bind("127.0.0.1:8080")?
+    HttpServer::new(|| {
+        App::new()
+            .wrap(
+                actix_cors::Cors::permissive())
+            .service(response)
+    })
+    .bind("127.0.0.1:8080")?
         .run()
         .await
 }

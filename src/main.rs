@@ -43,12 +43,12 @@ impl Error for OpenAIError {}
 
 async fn call_openai_api(prompt: String) -> Result<String, Box<dyn Error>> {
     let openai_url = "https://api.openai.com/v1/completions";
+    let model = "davinci:ft-personal-2023-02-26-04-40-43";
 
 
     let prompt_body =  format!("{}", prompt);
     let openai_request = OpenAIRequest {
-        // model: "text-davinci-003".to_string(),
-        model: "davinci:ft-personal-2023-02-26-04-40-43".to_string(),
+        model: model.to_string(),
         prompt: prompt_body,
         max_tokens: 300,
         n: 1,

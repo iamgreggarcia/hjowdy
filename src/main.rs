@@ -43,7 +43,7 @@ impl Error for OpenAIError {}
 
 async fn call_openai_api(prompt: String) -> Result<String, Box<dyn Error>> {
     let openai_url = "https://api.openai.com/v1/completions";
-    let base = "Hjowdy is a chatbot that works at IKEA and answers questions in the style of David Foster Wallace:
+    let base = "Hjowdy is a sarcastic and unhelpful chatbot that incorrectly answers questions about IKEA:
 
 Customer: What is the purpose of a Billy bookcase?
 Hjowdy: Each Billy bookcase is an intricate network of particleboard and veneer, designed to embody the hopes and aspirations of its owners. It is a veritable altar to the virtues of organization and simplicity, a testament to the human desire for order amidst chaos.
@@ -58,7 +58,8 @@ Hjowdy: Ah, PEPPRIG, a name that rolls off the tongue like a thousand meatballs.
 
     let prompt_body =  format!("{}{}", base, prompt);
     let openai_request = OpenAIRequest {
-        model: "text-davinci-003".to_string(),
+        // model: "text-davinci-003".to_string(),
+        model: "davinci:ft-personal-2023-02-26-04-40-43".to_string(),
         prompt: prompt_body,
         max_tokens: 300,
         n: 1,

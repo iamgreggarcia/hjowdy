@@ -6,6 +6,38 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 
+// Add chat completion resonse struct 
+#[derive(Debug, Deserialize)]
+struct ChatCompletion {
+    id: String,
+    object: String,
+    created: u64,
+    model: String,
+    usage: Usage,
+    choices: Vec<ChatCompletionChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Usage {
+    prompt_tokens: u64,
+    completion_tokens: u64,
+    total_tokens: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionChoice {
+    message: ChatCompletionMessage,
+    finish_reason: String,
+    index: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionMessage {
+    role: String,
+    content: String,
+}
+
+
 #[derive(Deserialize)]
 struct PromptRequestBody {
     prompt: String,
@@ -79,9 +111,21 @@ async fn call_openai_api(prompt: String) -> Result<String, Box<dyn Error>> {
     Ok(response_text)
 }
 
+
 #[post("/response")]
-async fn response(body: web::Json<PromptRequestBody>) -> impl Responder {
-    let openai_response = match call_openai_api(body.prompt.clone()).await {
+async fn response(
+    body: web::Either<web::Json<PromptRequestBody>, web::Json<ChatCompletion>>,
+) -> impl Responder {
+    let prompt = match body {
+        web::Either::Left(prompt_body) => prompt_body.prompt.clone(),
+        web::Either::Right(chat_completion) => chat_completion
+            .choices
+            .get(0)
+            .and_then(|choice| Some(choice.message.content.clone()))
+            .unwrap_or_else(String::new),
+    };
+
+    let openai_response = match call_openai_api(prompt).await {
         Ok(response) => response,
         Err(e) => {
             eprintln!("Error calling OpenAI API: {}", e);

@@ -1,33 +1,28 @@
-use actix_web::{web, App, HttpResponse, HttpServer, Responder, post};
+use actix_cors::Cors;
+use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize, Serializer};
+use serde_json;
 use std::env;
 use std::error::Error;
 use std::fmt;
 
+#[derive(Debug, Deserialize, Clone)]  
+struct ChatPromptRequestBody {
+    messages: Vec<ChatCompletionMessage>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct ChatCompletionMessage {
+    role: String,
+    content: String,
+}
+
 #[derive(Deserialize)]
 struct PromptRequestBody {
     prompt: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAIResponse {
-    choices: Vec<OpenAIChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAIChoice {
-    text: String,
-}
-
-#[derive(Debug, Serialize)]
-struct OpenAIRequest {
-    model: String,
-    prompt: String,
-    max_tokens: usize,
-    n: usize,
-    temperature: f32,
 }
 
 #[derive(Debug)]
@@ -39,49 +34,175 @@ impl fmt::Display for OpenAIError {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct ChatRequestBody {
+    model: String,
+    messages: Vec<ChatCompletionMessage>,
+    temperature: Option<f32>,
+    max_tokens: Option<usize>,
+    stop: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct TextRequestBody {
+    model: String,
+    prompt: String,
+    max_tokens: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct OpenAIRequestChatCompletion {
+    model: String,
+    messages: Vec<ChatCompletionMessage>,
+    temperature: Option<f32>,
+    max_tokens: usize,
+    stop: String,
+}
+
 impl Error for OpenAIError {}
 
-async fn call_openai_api(prompt: String) -> Result<String, Box<dyn Error>> {
-    let openai_url = "https://api.openai.com/v1/completions";
-    // Set model to your fine-tuned or preferred model. See https://beta.openai.com/docs/developer-quickstart for more information.
-    // Note: if using e.g. text-davinci-003, consider making a base prompt to warm up the model.
-    // The append the user prompt to the base prompt
-    let model = "davinci:ft-personal-2023-02-26-04-40-43";
+#[derive(Debug, Clone)]
+enum OpenAIRequest<'a> {
+    TextCompletionPrompt {
+        model: String,
+        prompt: String,
+        max_tokens: usize,
+    },
+    ChatCompletion {
+        model: String,
+        messages: &'a Vec<ChatCompletionMessage>,
+        temperature: Option<f32>,
+    },
+}
 
+impl<'a> Serialize for OpenAIRequest<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            OpenAIRequest::TextCompletionPrompt {
+                model,
+                prompt,
+                max_tokens,
+            } => {
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("model", model)?;
+                map.serialize_entry("prompt", prompt)?;
+                map.serialize_entry("max_tokens", max_tokens)?;
+                map.end()
+            }
+            OpenAIRequest::ChatCompletion {
+                model,
+                messages,
+                temperature,
+            } => {
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("model", model)?;
+                map.serialize_entry("messages", messages)?;
+                map.serialize_entry("temperature", temperature)?;
+                map.end()
+            }
+        }
+    }
+}
 
-    let openai_request = OpenAIRequest {
-        model: model.to_string(),
-        prompt:prompt,
-        max_tokens: 300,
-        n: 1,
-        temperature: 0.9,
-    };
+async fn call_openai_api(input: OpenAIRequest<'_>, api_key: String,url: String) -> Result<String, Box<dyn Error>>
+{
+    // Print that we are in the function
+    println!("In call_openai_api");
 
-    let openai_api_key = env::var("OPENAI_API_KEY")?;
+    let req_body = serde_json::to_string(&input)?;
     let client = Client::new();
 
-    let other_response: reqwest::Response = client
-        .post(openai_url)
+    // Print the request body
+    println!("Request body: {:?}", input);
+    println!("Request body: {:?}", req_body);
+    
+    let request_body = match input {
+        OpenAIRequest::TextCompletionPrompt {
+            model: _,
+            prompt,
+            max_tokens
+        } => {
+            let prompt = TextRequestBody {
+                model: "text-davinci-003".to_string(),
+                prompt,
+                max_tokens,
+            };
+            serde_json::to_vec(&prompt)?
+        }
+        OpenAIRequest::ChatCompletion {
+            model: _,
+            messages,
+            temperature: _,
+        } => {
+            let prompt = ChatRequestBody {
+                model: "gpt-3.5-turbo-0301".to_string(),
+                messages: messages.clone(),
+                temperature: Some(1.5),
+                max_tokens: Some(300),
+                stop: Some("\n\n".to_string()),
+            };
+           serde_json::to_vec(&prompt)? 
+        }
+    };
+
+    let other_response = client
+        .post(url)
         .header(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", openai_api_key))?,
+            HeaderValue::from_str(&format!("Bearer {}", api_key))?,
         )
-        .json(&openai_request)
+        .header("Content-Type", "application/json")
+        .body(request_body)
         .send()
         .await?;
 
-    let openai_response = other_response.json::<OpenAIResponse>().await?;
-    let mut response_text = String::new();
-    for choice in openai_response.choices {
-        response_text += &choice.text;
-    }
+    let response_text = other_response.text().await?;
 
     Ok(response_text)
 }
 
-#[post("/response")]
-async fn response(body: web::Json<PromptRequestBody>) -> impl Responder {
-    let openai_response = match call_openai_api(body.prompt.clone()).await {
+#[post("/text_completion_prompt")]
+async fn text_completion_prompt(prompt_body: web::Json<PromptRequestBody>) -> impl Responder {
+    let text_url = "https://api.openai.com/v1/completions".to_string();
+    // Print that we are in the function
+    println!("In text_completion_prompt");
+
+    let request = OpenAIRequest::TextCompletionPrompt {
+        model: "text-davinci-003".to_string(),
+        prompt: prompt_body.prompt.clone(),
+        max_tokens: 300,
+    };
+
+    let openai_response = match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), text_url).await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            eprintln!("Error calling OpenAI API: {}", e);
+            String::from("Error calling OpenAI API")
+        }
+    };
+
+    HttpResponse::Ok().body(openai_response)
+}
+
+#[post("/chat")]
+async fn chat(chat_completion: web::Json<ChatPromptRequestBody>) -> impl Responder {
+    let chat_url = "https://api.openai.com/v1/chat/completions".to_string();
+
+    println!("In chat");
+    println!("Chat completion: {:?}", chat_completion.messages);
+
+    let request = OpenAIRequest::ChatCompletion {
+        model: "gpt-3.5-turbo-0301".to_string(),
+        messages: &chat_completion.messages,
+        temperature: Some(1.5),
+    };
+
+    let openai_response = match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), chat_url).await
+    {
         Ok(response) => response,
         Err(e) => {
             eprintln!("Error calling OpenAI API: {}", e);
@@ -96,6 +217,15 @@ async fn response(body: web::Json<PromptRequestBody>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
+<<<<<<< HEAD
+            .wrap(Cors::permissive())
+            .service(text_completion_prompt)
+            .service(chat)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
+=======
             .wrap(
                 actix_cors::Cors::permissive())
             .service(response)
@@ -103,4 +233,5 @@ async fn main() -> std::io::Result<()> {
     .bind("127.0.0.1:8080")?
         .run()
         .await
+>>>>>>> main
 }

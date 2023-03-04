@@ -1,32 +1,118 @@
 # Hjowdy
 
-A Rust-based HTTP server and API wrapper that provides a single API endpoint for interacting with the OpenAI GPT-3 API. The server responds to POST requests with a JSON object containng
-a prompt and returns the generated text from OpenAI's GPT-3 model (e.g., text-davinci-003) or a fine tuning
-model of your own.
+Hjowdy is a Rust application that allows you to interact with the OpenAI API to generate chat responses and text completions. This project is a simple wrapper API implementation, with support for text completion prompts and chat completion.
 
-This server can be used for a starting point for building more complex applications that incorporate OpenAI's API.
+## Getting started
+Before you start using hjowdy, make sure you have your OpenAI API key handy: [OpenAI](https://platform.openai.com/)
 
-## Installation
+### Running hjowdy locally
+To run hjowdy locally, you'll need to have Rust installed. Once you've installed Rust, clone the hjowdy repository and navigate to the directory:
 
-1. Clone the repository: `git clone https://github.com/iamgreggarcia/hjowdy.git`
-2. Navigate to the project directory: `cd hjowdy`
-3. Set your OpenAI API key as an environment variable named `OPENAI_API_KEY`.
-4. Run the project with `cargo run`.
-5. The web server will start on `http://127.0.0.1:8080`.
+```bash
+git clone https://github.com/<your_github_username>/hjowdy.git
+cd hjowdy
 
-## Usage
-
-To generate a response, make a GET request to `http://127.0.0.1:8080/Response/{prompt}`, where `{prompt}` is the prompt string for which you want a response.
-
-Example usage:
-
-```shell
-curl http://127.0.0.1:8080/Response/Hello,%20how%20are%20you%20today?
 ```
 
-This will return a generated response from the OpenAI API based on the prompt "Hello, how are you today?".
+Next, set an environment variable `OPENAI_API_KEY`:
 
-## License
+```bash
+export OPENAI_API_KEY=<your_openai_api_key>
+```
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+Finally, run the project using Cargo:
+
+```bash
+cargo run
+```
+
+Hjowdy will be running on `http://localhost:8080`.
+
+## Using the API
+
+### Text Completion Prompt
+
+Uses the `POST https://api.openai.com/v1/completions` OpenAI API found [here](https://platform.openai.com/docs/api-reference/completions)
+> Given a prompt, the model will return one or more predicted completions, and can also return the probabilities of alternative tokens at each position.
+
+
+To generate text completion prompts, make a POST request to http://localhost:8080/text_completion_prompt with a JSON body that contains the text 
+
+```bash
+ curl -X POST \
+  http://localhost:8080/text_completion_prompt \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"I want to print the rust logo in ASCII"}'
+
+
+```
+
+Response:
+
+```bash
+{"id":"cmpl-6qTNWvv4JS7v9nJxsofGmONtDzJM0",
+"object":"text_completion","created":1677964006,"model":"text-davinci-003","choices":
+[{"text":"\n\n __   __   /\\   _____  \\ \\      / /  _____|\n \\ \\ / /  /  \\ / ____/  |\\ \\  /\\  / /  |  __\n  \\ V /  / /\\ \\\\___ \\    \\ \\/  \\/ /| | |_ |\n   > <  / ____ \\ ___) |    \\  /\\  / | |__| |\n  / . \\/_/    \\/_____/      \\/  \\/   \\_____|\n /_/\n \n ██╗   ██╗ ███████╗██╗███╗   ██╗ ██████╗\n ██║   ██║ ██╔════╝██║████╗  ██║██╔════╝\n ██║   ██║ █████╗  ██║██╔██╗ ██║██║  ███╗\n ██║   ██║ ██╔══╝  ██║██║╚██╗██║██║   ██║\n ╚██████╔╝ ███████╗██║██║ ╚████║╚","index":0,"logprobs":null,"finish_reason":"length"}],"usage":{"prompt_tokens":9,"completion_tokens":300,"total_tokens":309}}
+
+``` 
+(clearly not its best work!)
+
+### Chat Completion
+
+Uses the `POST https://api.openai.com/v1/chat/completions` found [here](https://platform.openai.com/docs/api-reference/chat/create)
+
+To generate chat completions, make a POST request to http://localhost:8080/chat with a JSON body that contains an array of messages:
+
+```bash
+curl -X POST \
+  http://localhost:8080/chat \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "messages": [
+            {
+                "role": "system",
+                "content": "Hej. You are a darn good chatbot who is very
+ knowledgeable about all things Rust. You also love memes."
+            },
+            {
+                "role": "user",
+                "content": "Hey, explain Rust lifetimes to me in 7 words."
+            }
+        ]
+    }'
+
+```
+
+Response:
+
+```bash
+{
+  "id": "chatcmpl-6qTIYKEnNfs14a5TuhQm4FDG1OmuU",
+  "object": "chat.completion",
+  "created": 1677963698,
+  "model": "gpt-3.5-turbo-0301",
+  "usage": {
+    "prompt_tokens": 49,
+    "completion_tokens": 11,
+    "total_tokens": 60
+  },
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "Borrow checker ensures safe code ownership relations."
+      },
+      "finish_reason": "stop",
+      "index": 0
+    }
+  ]
+}
+```
+
+TODO
+Integration tests: Write integration tests to ensure hjowdy is working as expected.
+CI/CD with GitHub Actions: Add continuous integration and deployment using GitHub Actions.
+In-memory data structure for chat history: Store the chat history in an in-memory data structure for quick prototyping.
+Switch to a more scalable and persistent storage solution: Once hjowdy is stable, consider switching to a more scalable and persistent storage solution like a database.
+Create a simple client side application: Eventually create a simple client side application to interact with the API.

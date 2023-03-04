@@ -110,9 +110,10 @@ Response:
 }
 ```
 
-TODO
-Integration tests: Write integration tests to ensure hjowdy is working as expected.
-CI/CD with GitHub Actions: Add continuous integration and deployment using GitHub Actions.
-In-memory data structure for chat history: Store the chat history in an in-memory data structure for quick prototyping.
-Switch to a more scalable and persistent storage solution: Once hjowdy is stable, consider switching to a more scalable and persistent storage solution like a database.
-Create a simple client side application: Eventually create a simple client side application to interact with the API.
+## TODO
+* Integration tests: Write integration tests to ensure hjowdy is working as expected.
+* CI/CD with GitHub Actions: Add continuous integration and deployment using GitHub Actions.
+* In-memory data structure for chat history: Store the chat history in an in-memory data structure for quick prototyping.
+* Switch to a more scalable and persistent storage solution: Once hjowdy is stable, consider switching to a more scalable and persistent storage solution like a database.
+* Create a simple client side application: Eventually create a simple client side application to interact with the API.
+* Parse response from OpenAI API before sending back to hjowdy API caller

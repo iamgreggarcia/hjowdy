@@ -217,7 +217,6 @@ async fn chat(chat_completion: web::Json<ChatPromptRequestBody>) -> impl Respond
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
-<<<<<<< HEAD
             .wrap(Cors::permissive())
             .service(text_completion_prompt)
             .service(chat)
@@ -225,13 +224,4 @@ async fn main() -> std::io::Result<()> {
     .bind("127.0.0.1:8080")?
     .run()
     .await
-=======
-            .wrap(
-                actix_cors::Cors::permissive())
-            .service(response)
-    })
-    .bind("127.0.0.1:8080")?
-        .run()
-        .await
->>>>>>> main
 }

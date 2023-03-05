@@ -8,6 +8,10 @@ use serde_json;
 use std::env;
 use std::error::Error;
 use std::fmt;
+use std::sync::{Arc, Mutex};
+use chat_history::ChatHistory;
+
+mod chat_history;
 
 #[derive(Debug, Deserialize, Clone)]  
 struct ChatPromptRequestBody {
@@ -15,7 +19,7 @@ struct ChatPromptRequestBody {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-struct ChatCompletionMessage {
+pub struct ChatCompletionMessage {
     role: String,
     content: String,
 }
@@ -40,7 +44,6 @@ struct ChatRequestBody {
     messages: Vec<ChatCompletionMessage>,
     temperature: Option<f32>,
     max_tokens: Option<usize>,
-    stop: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,7 +59,6 @@ struct OpenAIRequestChatCompletion {
     messages: Vec<ChatCompletionMessage>,
     temperature: Option<f32>,
     max_tokens: usize,
-    stop: String,
 }
 
 impl Error for OpenAIError {}
@@ -142,7 +144,6 @@ async fn call_openai_api(input: OpenAIRequest<'_>, api_key: String,url: String) 
                 messages: messages.clone(),
                 temperature: Some(1.5),
                 max_tokens: Some(300),
-                stop: Some("\n\n".to_string()),
             };
            serde_json::to_vec(&prompt)? 
         }
@@ -189,7 +190,21 @@ async fn text_completion_prompt(prompt_body: web::Json<PromptRequestBody>) -> im
 }
 
 #[post("/chat")]
-async fn chat(chat_completion: web::Json<ChatPromptRequestBody>) -> impl Responder {
+async fn chat(chat_completion: web::Json<ChatPromptRequestBody>, chat_history: web::Data<Arc<Mutex<ChatHistory>>>,) -> impl Responder {
+
+    let mut messages = Vec::new();
+    let mut history = chat_history.lock().unwrap();
+
+    for message in history.get_messages() {
+        messages.push(message.clone());
+    }
+    
+    // Add the new message to the chat_history
+    for message in chat_completion.clone().messages {
+        messages.push(message.clone());
+        history.add_message(message);
+    }
+
     let chat_url = "https://api.openai.com/v1/chat/completions".to_string();
 
     println!("In chat");
@@ -197,7 +212,7 @@ async fn chat(chat_completion: web::Json<ChatPromptRequestBody>) -> impl Respond
 
     let request = OpenAIRequest::ChatCompletion {
         model: "gpt-3.5-turbo-0301".to_string(),
-        messages: &chat_completion.messages,
+        messages: &messages,
         temperature: Some(1.5),
     };
 
@@ -215,8 +230,13 @@ async fn chat(chat_completion: web::Json<ChatPromptRequestBody>) -> impl Respond
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    let chat_history = web::Data::new(Arc::new(Mutex::new(ChatHistory::new())));
+
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+    HttpServer::new(move || {
         App::new()
+            .app_data(chat_history.clone())
             .wrap(Cors::permissive())
             .service(text_completion_prompt)
             .service(chat)

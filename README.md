@@ -117,3 +117,4 @@ Response:
 * Switch to a more scalable and persistent storage solution: Once hjowdy is stable, consider switching to a more scalable and persistent storage solution like a database.
 * Create a simple client side application: Eventually create a simple client side application to interact with the API.
 * Parse response from OpenAI API before sending back to hjowdy API caller
+* Modularize the mono `main.rs`

@@ -140,7 +140,7 @@ async fn call_openai_api(input: OpenAIRequest<'_>, api_key: String,url: String) 
             temperature: _,
         } => {
             let prompt = ChatRequestBody {
-                model: "gpt-3.5-turbo-0301".to_string(),
+                model: "gpt-3.5-turbo".to_string(),
                 messages: messages.clone(),
                 temperature: Some(1.5),
                 max_tokens: Some(300),

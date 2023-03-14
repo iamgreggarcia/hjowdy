@@ -10,7 +10,7 @@ impl ChatHistory {
             messages: Vec::new(),
         }
     }
-    
+
     pub fn add_message(&mut self, message: ChatCompletionMessage) {
         self.messages.push(message);
     }

@@ -1,5 +1,6 @@
 use actix_cors::Cors;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
+use chat_history::ChatHistory;
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::ser::SerializeMap;
@@ -9,11 +10,10 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex};
-use chat_history::ChatHistory;
 
 mod chat_history;
 
-#[derive(Debug, Deserialize, Clone)]  
+#[derive(Debug, Deserialize, Clone)]
 struct ChatPromptRequestBody {
     messages: Vec<ChatCompletionMessage>,
 }
@@ -109,8 +109,11 @@ impl<'a> Serialize for OpenAIRequest<'a> {
     }
 }
 
-async fn call_openai_api(input: OpenAIRequest<'_>, api_key: String,url: String) -> Result<String, Box<dyn Error>>
-{
+async fn call_openai_api(
+    input: OpenAIRequest<'_>,
+    api_key: String,
+    url: String,
+) -> Result<String, Box<dyn Error>> {
     // Print that we are in the function
     println!("In call_openai_api");
 
@@ -120,12 +123,12 @@ async fn call_openai_api(input: OpenAIRequest<'_>, api_key: String,url: String) 
     // Print the request body
     println!("Request body: {:?}", input);
     println!("Request body: {:?}", req_body);
-    
+
     let request_body = match input {
         OpenAIRequest::TextCompletionPrompt {
             model: _,
             prompt,
-            max_tokens
+            max_tokens,
         } => {
             let prompt = TextRequestBody {
                 model: "text-davinci-003".to_string(),
@@ -143,9 +146,9 @@ async fn call_openai_api(input: OpenAIRequest<'_>, api_key: String,url: String) 
                 model: "gpt-3.5-turbo-0301".to_string(),
                 messages: messages.clone(),
                 temperature: Some(1.2),
-                max_tokens: Some(1000)
+                max_tokens: Some(1000),
             };
-           serde_json::to_vec(&prompt)? 
+            serde_json::to_vec(&prompt)?
         }
     };
 
@@ -177,28 +180,30 @@ async fn text_completion_prompt(prompt_body: web::Json<PromptRequestBody>) -> im
         max_tokens: 300,
     };
 
-    let openai_response = match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), text_url).await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            eprintln!("Error calling OpenAI API: {}", e);
-            String::from("Error calling OpenAI API")
-        }
-    };
+    let openai_response =
+        match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), text_url).await {
+            Ok(response) => response,
+            Err(e) => {
+                eprintln!("Error calling OpenAI API: {}", e);
+                String::from("Error calling OpenAI API")
+            }
+        };
 
     HttpResponse::Ok().body(openai_response)
 }
 
 #[post("/chat")]
-async fn chat(chat_completion: web::Json<ChatPromptRequestBody>, chat_history: web::Data<Arc<Mutex<ChatHistory>>>,) -> impl Responder {
-
+async fn chat(
+    chat_completion: web::Json<ChatPromptRequestBody>,
+    chat_history: web::Data<Arc<Mutex<ChatHistory>>>,
+) -> impl Responder {
     let mut messages = Vec::new();
     let mut history = chat_history.lock().unwrap();
 
     for message in history.get_messages() {
         messages.push(message.clone());
     }
-    
+
     // Add the new message to the chat_history
     for message in chat_completion.clone().messages {
         messages.push(message.clone());
@@ -216,14 +221,14 @@ async fn chat(chat_completion: web::Json<ChatPromptRequestBody>, chat_history: w
         temperature: Some(1.5),
     };
 
-    let openai_response = match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), chat_url).await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            eprintln!("Error calling OpenAI API: {}", e);
-            String::from("Error calling OpenAI API")
-        }
-    };
+    let openai_response =
+        match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), chat_url).await {
+            Ok(response) => response,
+            Err(e) => {
+                eprintln!("Error calling OpenAI API: {}", e);
+                String::from("Error calling OpenAI API")
+            }
+        };
 
     HttpResponse::Ok().body(openai_response)
 }

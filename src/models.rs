@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use tokio_pg_mapper_derive::PostgresMapper;
 use chrono::DateTime;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use tokio_pg_mapper_derive::PostgresMapper;
 
 #[derive(Serialize, Deserialize, PostgresMapper)]
 #[pg_mapper(table = "chats")]

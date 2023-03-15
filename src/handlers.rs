@@ -1,4 +1,4 @@
-use crate::db::{get_chats, get_messages, create_chat, add_message};
+use crate::db::{add_message, create_chat, get_chats, get_messages, get_messages_by_chat_id};
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
 use actix_web::{web, Error, HttpResponse};
@@ -30,10 +30,21 @@ pub async fn get_messages_handler(
     Ok(HttpResponse::Ok().json(new_message))
 }
 
+pub async fn get_messages_by_chat_id_handler(
+    db_pool: web::Data<Pool>,
+    chat_id: i32,
+) -> Result<Vec<Message>, MyError> {
+    let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
+
+    let messages = get_messages_by_chat_id(&client, chat_id).await?;
+
+    Ok(messages)
+}
+
 pub async fn create_chat_handler(
     db_pool: web::Data<Pool>,
-    app_user: web::Path<String>
-    ) -> Result<HttpResponse, Error> {
+    app_user: web::Path<String>,
+) -> Result<HttpResponse, Error> {
     let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
 
     let new_chat = create_chat(&client, app_user.to_string()).await?;
@@ -43,9 +54,8 @@ pub async fn create_chat_handler(
 
 pub async fn add_message_handler(
     db_pool: web::Data<Pool>,
-    message: web::Json<Message>
-    ) -> Result<HttpResponse, Error> {
-
+    message: web::Json<Message>,
+) -> Result<HttpResponse, Error> {
     let message_info: Message = message.into_inner();
 
     let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
@@ -53,5 +63,4 @@ pub async fn add_message_handler(
     let new_message = add_message(&client, message_info).await?;
 
     Ok(HttpResponse::Ok().json(new_message))
-   
 }

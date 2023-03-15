@@ -1,9 +1,13 @@
 use actix_cors::Cors;
-use chrono::Utc;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use chat_history::ChatHistory;
+use chrono::Utc;
+use deadpool_postgres::Pool;
 use dotenv::dotenv;
-use handlers::{get_chats_handler, get_messages_handler, create_chat_handler, add_message_handler};
+use handlers::{
+    add_message_handler, create_chat_handler, get_chats_handler, get_messages_by_chat_id_handler,
+    get_messages_handler,
+};
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::ser::SerializeMap;
@@ -14,10 +18,8 @@ use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 use tokio_postgres::NoTls;
-use deadpool_postgres::Pool;
 extern crate chrono;
 extern crate serde;
-
 
 use crate::config::Config;
 
@@ -207,25 +209,13 @@ async fn text_completion_prompt(prompt_body: web::Json<PromptRequestBody>) -> im
     HttpResponse::Ok().body(openai_response)
 }
 
-#[post("/chat")]
+#[post("/chat/{chat_id}")]
 async fn chat(
+    chat_id: web::Path<i32>,
     chat_completion: web::Json<ChatPromptRequestBody>,
-    chat_history: web::Data<Arc<Mutex<ChatHistory>>>,
     db_pool: web::Data<deadpool_postgres::Pool>,
 ) -> impl Responder {
-    let mut messages = Vec::new();
-    let mut history = chat_history.lock().unwrap();
-
-    for message in history.get_messages() {
-        messages.push(message.clone());
-    }
-
-    // Add the new message to the chat_history
-    for message in chat_completion.clone().messages {
-        messages.push(message.clone());
-        history.add_message(message);
-
-    }
+    let chat_id_value = chat_id.into_inner();
 
     // Get the last message from the request
     if let Some(message) = chat_completion.messages.last() {
@@ -235,13 +225,30 @@ async fn chat(
             created_on: Utc::now(),
             role: message.role.clone(),
             content: message.content.clone(),
-            chat_id_relation: 1, // Replace with the actual chat_id
+            chat_id_relation: chat_id_value,  
         };
 
         // Call the add_message_handler function
         let message_result = add_message_handler(db_pool.clone(), web::Json(new_message)).await;
         println!("Message result: {:?}", message_result);
     }
+
+    let messages =
+        match get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await {
+            Ok(messages) => messages,
+            Err(e) => {
+                eprintln!("Error getting messages: {}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+
+    let openai_messages = messages
+        .into_iter()
+        .map(|msg| ChatCompletionMessage {
+            role: msg.role,
+            content: msg.content,
+        })
+        .collect::<Vec<ChatCompletionMessage>>();
 
     let chat_url = "https://api.openai.com/v1/chat/completions".to_string();
 
@@ -250,7 +257,7 @@ async fn chat(
 
     let request = OpenAIRequest::ChatCompletion {
         model: "gpt-3.5-turbo-0301".to_string(),
-        messages: &messages,
+        messages: &openai_messages,
         temperature: Some(1.5),
     };
 
@@ -273,7 +280,7 @@ async fn main() -> std::io::Result<()> {
     let chat_history = web::Data::new(Arc::new(Mutex::new(ChatHistory::new())));
 
     let config = Config::from_env().unwrap();
-    let pool = config.pg.create_pool(None,NoTls).unwrap();
+    let pool = config.pg.create_pool(None, NoTls).unwrap();
 
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();

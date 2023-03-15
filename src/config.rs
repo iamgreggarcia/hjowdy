@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use deadpool_postgres::Pool;
+use serde::Deserialize;
 
 use dotenv::dotenv;
 use std::env;
@@ -24,13 +24,8 @@ impl Config {
                 max_size: env::var("PG.POOL.MAX_SIZE")?.parse::<usize>()?,
                 ..Default::default()
             }),
-                        ..Default::default()
+            ..Default::default()
         };
         Ok(Self { server_addr, pg })
     }
 }
-
-
-
-
-

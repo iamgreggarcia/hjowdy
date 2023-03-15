@@ -5,14 +5,12 @@ use actix_web::{web, Error, HttpResponse};
 use deadpool_postgres::{Client, Pool};
 
 pub async fn get_chats_handler(
-    chat: web::Json<Chat>,
+    app_user: web::Path<i32>,
     db_pool: web::Data<Pool>,
 ) -> Result<HttpResponse, Error> {
-    let chat_info: Chat = chat.into_inner();
-
     let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
 
-    let new_chat = get_chats(&client, chat_info).await?;
+    let new_chat = get_chats(&client, *app_user).await?;
 
     Ok(HttpResponse::Ok().json(new_chat))
 }
@@ -29,6 +27,16 @@ pub async fn get_messages_handler(
 
     Ok(HttpResponse::Ok().json(new_message))
 }
+
+pub async fn get_messages_by_chat_id_endpoint(
+    chat_id: web::Path<i32>,
+    db_pool: web::Data<Pool>,
+    ) -> Result<HttpResponse, Error> {
+    let chat_id_value = chat_id.into_inner();
+    let messages = get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await?;
+    Ok(HttpResponse::Ok().json(messages))
+}
+
 
 pub async fn get_messages_by_chat_id_handler(
     db_pool: web::Data<Pool>,

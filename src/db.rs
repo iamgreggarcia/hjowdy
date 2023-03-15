@@ -6,27 +6,6 @@ use tokio_postgres::types::Date;
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
 
-pub async fn get_chats(client: &Client, chat_info: Chat) -> Result<Chat, MyError> {
-    let _stmt = include_str!("../sql/get_chats.sql");
-    let _stmt = _stmt.replace("$1", &chat_info.app_user.to_string());
-    let stmt = client.prepare(&_stmt).await.unwrap();
-
-    client
-        .query(
-            &stmt,
-            &[
-                &chat_info.app_user,
-                &chat_info.created_on,
-                &chat_info.chat_id,
-            ],
-        )
-        .await?
-        .iter()
-        .map(|row| Chat::from_row_ref(row).unwrap())
-        .collect::<Vec<Chat>>()
-        .pop()
-        .ok_or(MyError::NotFound)
-}
 
 pub async fn get_messages(client: &Client, message_info: Message) -> Result<Vec<Message>, MyError> {
     let _stmt = include_str!("../sql/get_messages.sql");
@@ -66,6 +45,27 @@ pub async fn get_messages_by_chat_id(
         .collect::<Vec<Message>>();
 
     Ok(messages)
+}
+
+pub async fn get_chats(client: &Client, app_user:i32) -> Result<Vec<Chat>, MyError> {
+    let _stmt = include_str!("../sql/get_chats.sql");
+    let stmt = client
+        .prepare(&_stmt)
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    let chats = client
+        .query(
+            &stmt,
+            &[
+            &app_user,
+            ],
+            )
+        .await?
+        .iter()
+        .map(|row| Chat::from_row_ref(row).unwrap())
+        .collect::<Vec<Chat>>();
+        Ok(chats)
 }
 
 pub async fn create_chat(client: &Client, app_user:i32) -> Result<Chat, MyError> {

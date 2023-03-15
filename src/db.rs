@@ -51,7 +51,10 @@ pub async fn get_messages_by_chat_id(
     client: &Client,
     chat_id: i32,
 ) -> Result<Vec<Message>, MyError> {
-    let stmt = client.prepare(include_str!("../sql/get_messages_by_chat_id.sql")).await.unwrap();
+    let stmt = client
+        .prepare(include_str!("../sql/get_messages_by_chat_id.sql"))
+        .await
+        .unwrap();
 
     let messages = client
         .query(&stmt, &[&chat_id])

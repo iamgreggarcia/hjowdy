@@ -225,7 +225,7 @@ async fn chat(
             created_on: Utc::now(),
             role: message.role.clone(),
             content: message.content.clone(),
-            chat_id_relation: chat_id_value,  
+            chat_id_relation: chat_id_value,
         };
 
         // Call the add_message_handler function
@@ -233,14 +233,13 @@ async fn chat(
         println!("Message result: {:?}", message_result);
     }
 
-    let messages =
-        match get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await {
-            Ok(messages) => messages,
-            Err(e) => {
-                eprintln!("Error getting messages: {}", e);
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
+    let messages = match get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await {
+        Ok(messages) => messages,
+        Err(e) => {
+            eprintln!("Error getting messages: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
 
     let openai_messages = messages
         .into_iter()
@@ -269,6 +268,30 @@ async fn chat(
                 String::from("Error calling OpenAI API")
             }
         };
+
+
+    let response_json: serde_json::Value = match serde_json::from_str(&openai_response) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("Error parsing JSON: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    let content = response_json["choices"][0]["message"]["content"]
+        .as_str()
+        .ok_or("Error getting content")
+        .unwrap_or_else(|_| "No summary found.");
+
+    let ai_message = models::Message {
+        id: None,
+        created_on: Utc::now(),
+        role: "assistant".to_string(),
+        content: content.to_string(),
+        chat_id_relation: chat_id_value,
+    };
+
+    let ai_message_result = add_message_handler(db_pool.clone(), web::Json(ai_message)).await;
+    println!("AI message result: {:?}", ai_message_result);
 
     HttpResponse::Ok().body(openai_response)
 }

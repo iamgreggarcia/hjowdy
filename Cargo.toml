@@ -17,4 +17,6 @@ env_logger = "0.9.0"
 dotenv = "0.15.0"
 tokio-pg-mapper = "0.2.0"
 tokio-pg-mapper-derive = "0.2.0"
-tokio-postgres = "0.7.6"
+tokio-postgres = {version="0.7.6", features = ["with-chrono-0_4"]}
+chrono = { version = "0.4.24", features = ["serde"] }
+derive_more = "0.99.16"

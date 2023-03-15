@@ -1,6 +1,9 @@
 use actix_cors::Cors;
+use chrono::Utc;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use chat_history::ChatHistory;
+use dotenv::dotenv;
+use handlers::{get_chats_handler, get_messages_handler, create_chat_handler, add_message_handler};
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::ser::SerializeMap;
@@ -10,8 +13,20 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use tokio_postgres::NoTls;
+use deadpool_postgres::Pool;
+extern crate chrono;
+extern crate serde;
+
+
+use crate::config::Config;
 
 mod chat_history;
+mod config;
+mod db;
+mod errors;
+mod handlers;
+mod models;
 
 #[derive(Debug, Deserialize, Clone)]
 struct ChatPromptRequestBody {
@@ -196,6 +211,7 @@ async fn text_completion_prompt(prompt_body: web::Json<PromptRequestBody>) -> im
 async fn chat(
     chat_completion: web::Json<ChatPromptRequestBody>,
     chat_history: web::Data<Arc<Mutex<ChatHistory>>>,
+    db_pool: web::Data<deadpool_postgres::Pool>,
 ) -> impl Responder {
     let mut messages = Vec::new();
     let mut history = chat_history.lock().unwrap();
@@ -208,6 +224,23 @@ async fn chat(
     for message in chat_completion.clone().messages {
         messages.push(message.clone());
         history.add_message(message);
+
+    }
+
+    // Get the last message from the request
+    if let Some(message) = chat_completion.messages.last() {
+        // Convert the message to the Message format
+        let new_message = models::Message {
+            id: None,
+            created_on: Utc::now(),
+            role: message.role.clone(),
+            content: message.content.clone(),
+            chat_id_relation: 1, // Replace with the actual chat_id
+        };
+
+        // Call the add_message_handler function
+        let message_result = add_message_handler(db_pool.clone(), web::Json(new_message)).await;
+        println!("Message result: {:?}", message_result);
     }
 
     let chat_url = "https://api.openai.com/v1/chat/completions".to_string();
@@ -235,13 +268,19 @@ async fn chat(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+
     let chat_history = web::Data::new(Arc::new(Mutex::new(ChatHistory::new())));
+
+    let config = Config::from_env().unwrap();
+    let pool = config.pg.create_pool(None,NoTls).unwrap();
 
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     HttpServer::new(move || {
         App::new()
             .app_data(chat_history.clone())
+            .app_data(web::Data::new(pool.clone()))
             .wrap(Cors::permissive())
             .service(text_completion_prompt)
             .service(chat)

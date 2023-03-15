@@ -314,6 +314,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Cors::permissive())
             .service(text_completion_prompt)
             .service(chat)
+            .route("/create_chat/{app_user}", web::post().to(create_chat_handler))
     })
     .bind("127.0.0.1:8080")?
     .run()

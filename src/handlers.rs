@@ -43,13 +43,18 @@ pub async fn get_messages_by_chat_id_handler(
 
 pub async fn create_chat_handler(
     db_pool: web::Data<Pool>,
-    app_user: web::Path<String>,
+    app_user: web::Path<i32>,
 ) -> Result<HttpResponse, Error> {
     let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
 
-    let new_chat = create_chat(&client, app_user.to_string()).await?;
-
-    Ok(HttpResponse::Ok().json(new_chat))
+    //  let new_chat = create_chat(&client, app_user.to_string()).await?;
+    match create_chat(&client, *app_user).await {
+        Ok(new_chat) => Ok(HttpResponse::Ok().content_type("application/json").json(new_chat)),
+        Err(e) => {
+            eprintln!("Error creating chat: {:?}", e);
+            Err(actix_web::error::ErrorInternalServerError(e))
+        }
+    }
 }
 
 pub async fn add_message_handler(

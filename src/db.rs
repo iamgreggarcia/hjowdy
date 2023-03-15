@@ -1,5 +1,7 @@
-use deadpool_postgres::Client;
+use deadpool_postgres::{Client, PoolError};
 use tokio_pg_mapper::FromTokioPostgresRow;
+use chrono::{Utc, DateTime};
+use tokio_postgres::types::Date;
 
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
@@ -66,13 +68,25 @@ pub async fn get_messages_by_chat_id(
     Ok(messages)
 }
 
-pub async fn create_chat(client: &Client, app_user: String) -> Result<Chat, MyError> {
+pub async fn create_chat(client: &Client, app_user:i32) -> Result<Chat, MyError> {
     let _stmt = include_str!("../sql/create_chat.sql");
-    let _stmt = _stmt.replace("$1", &app_user);
-    let stmt = client.prepare(&_stmt).await.unwrap();
-    let row = client.query_one(&stmt, &[]).await?;
+    let stmt = client
+        .prepare(&_stmt)
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
 
-    Ok(Chat::from_row_ref(&row)?)
+    let created_on: DateTime<Utc> = Utc::now();
+
+    let row = client
+        .query_one(&stmt, &[&app_user, &created_on])
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    Ok(Chat {
+        chat_id: row.get(0),
+        app_user: row.get(1),
+        created_on: row.get(2),
+    })
 }
 
 pub async fn add_message(client: &Client, message_info: Message) -> Result<Message, MyError> {

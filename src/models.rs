@@ -9,6 +9,7 @@ pub struct Chat {
     pub chat_id: i32,
     pub app_user: i32,
     pub created_on: DateTime<Utc>,
+    pub chat_name: String,
 }
 
 #[derive(Serialize, Deserialize, PostgresMapper)]

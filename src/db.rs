@@ -86,6 +86,7 @@ pub async fn create_chat(client: &Client, app_user:i32) -> Result<Chat, MyError>
         chat_id: row.get(0),
         app_user: row.get(1),
         created_on: row.get(2),
+        chat_name: row.get(3),
     })
 }
 

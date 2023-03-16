@@ -8,7 +8,7 @@ use tokio_pg_mapper_derive::PostgresMapper;
 pub struct Chat {
     pub chat_id: i32,
     pub app_user: i32,
-    pub created_on: String,
+    pub created_on: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, PostgresMapper)]

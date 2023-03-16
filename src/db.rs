@@ -112,3 +112,29 @@ pub async fn add_message(client: &Client, message_info: Message) -> Result<Messa
         chat_id_relation: row.get(4),
     })
 }
+
+pub async fn update_chat_name(client: &Client, chat_id: i32, new_chat_name: String) -> Result<(),MyError> {
+    let stmt = client
+        .prepare(include_str!("../sql/update_chat_name.sql"))
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    client
+        .execute(&stmt, &[&new_chat_name, &chat_id])
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    Ok(())
+}
+
+
+
+
+
+
+
+
+
+
+
+

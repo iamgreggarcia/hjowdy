@@ -1,8 +1,26 @@
-use crate::db::{add_message, create_chat, get_chats, get_messages, get_messages_by_chat_id};
+use crate::db::{add_message, create_chat, get_chats, get_messages, get_messages_by_chat_id, update_chat_name};
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
+use serde::Deserialize;
 use actix_web::{web, Error, HttpResponse};
 use deadpool_postgres::{Client, Pool};
+
+#[derive(Deserialize)]
+pub struct UpdateChatName {
+    chat_id: i32,
+    new_chat_name: String,
+}
+
+
+pub async fn update_chat_name_handler(db_pool: web::Data<Pool>, update_chat_info: web::Json<UpdateChatName>) -> Result<HttpResponse, MyError> {
+    let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
+    let chat_id = update_chat_info.chat_id;
+    let new_chat_name = update_chat_info.new_chat_name.clone();
+
+    update_chat_name(&client, chat_id, new_chat_name).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
 
 pub async fn get_chats_handler(
     app_user: web::Path<i32>,

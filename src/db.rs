@@ -128,14 +128,3 @@ pub async fn update_chat_name(client: &Client, chat_id: i32, new_chat_name: Stri
     Ok(())
 }
 
-
-
-
-
-
-
-
-
-
-
-

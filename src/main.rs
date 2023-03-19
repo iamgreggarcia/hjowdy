@@ -6,7 +6,7 @@ use deadpool_postgres::Pool;
 use dotenv::dotenv;
 use handlers::{
     add_message_handler, create_chat_handler, get_chats_handler, get_messages_by_chat_id_handler,get_messages_by_chat_id_endpoint,
-    get_messages_handler, update_chat_name_handler,
+    get_messages_handler, update_chat_name_handler,delete_chat_handler,
 };
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
@@ -318,6 +318,8 @@ async fn main() -> std::io::Result<()> {
             .route("/chats/{app_user}", web::get().to(get_chats_handler))
             .route("/chats/{chat_id}/messages", web::get().to(get_messages_by_chat_id_endpoint))
             .route("/update_chat_name", web::put().to(update_chat_name_handler))
+            .route("/delete_chat/{chat_id}", web::delete().to(delete_chat_handler))
+            
     })
     .bind("127.0.0.1:8080")?
     .run()

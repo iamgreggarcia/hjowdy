@@ -6,6 +6,19 @@ use tokio_postgres::types::Date;
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
 
+pub async fn delete_chat(client: &Client, chat_id: i32) -> Result<(), MyError> {
+    let stmt = client
+        .prepare(include_str!("../sql/delete_chat.sql"))
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    client
+        .execute(&stmt, &[&chat_id])
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    Ok(())
+}
 
 pub async fn get_messages(client: &Client, message_info: Message) -> Result<Vec<Message>, MyError> {
     let _stmt = include_str!("../sql/get_messages.sql");

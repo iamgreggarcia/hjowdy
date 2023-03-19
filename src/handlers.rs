@@ -1,4 +1,4 @@
-use crate::db::{add_message, create_chat, get_chats, get_messages, get_messages_by_chat_id, update_chat_name};
+use crate::db::{add_message, create_chat, get_chats, get_messages, get_messages_by_chat_id, update_chat_name, delete_chat};
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
 use serde::Deserialize;
@@ -11,6 +11,17 @@ pub struct UpdateChatName {
     new_chat_name: String,
 }
 
+pub async fn delete_chat_handler(
+    db_pool: web::Data<Pool>,
+    chat_id: web::Path<i32>,
+    ) -> Result<HttpResponse, Error> {
+
+    let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
+
+    delete_chat(&client, chat_id.into_inner()).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
 
 pub async fn update_chat_name_handler(db_pool: web::Data<Pool>, update_chat_info: web::Json<UpdateChatName>) -> Result<HttpResponse, MyError> {
     let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;

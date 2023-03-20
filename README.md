@@ -11,9 +11,17 @@ git clone https://github.com/example/hjowdy.git
 
 Make sure Rust and Cargo are installed on yer system. If they ain't, go ahead and rustle 'em up [here](https://www.rust-lang.org/tools/install).
 
-3. Set up yer environment variables
+## Database and Environment Variables 🗃️
 
-Copy `.env.example` to `.env` and fill in the necessary variables, including your OpenAI API key.
+**hjowdy** uses PostgreSQL as the database to store chat and message history. To set it up, follow these steps:
+
+1. Install PostgreSQL on your system. [Download and installation instructions](https://www.postgresql.org/download/)
+
+2. Ensure PostgreSQL is running.
+
+3. Set up the required PostgreSQL credentials and OpenAI API key in the `.env` file:
+
+Copy `.env.example` to `.env` and fill in the necessary variables
 
 ```
 SERVER_ADDR=127.0.0.1:8080
@@ -25,7 +33,12 @@ PG.DBNAME=<Your PostgreSQL database name>
 PG.POOL.MAX_SIZE=<Your PostgreSQL max pool size>
 OPENAI_API_KEY=<Your OpenAI API key>
 ```
+4. Run the `setup_database.sh` script to create the `chathistory` database and necessary tables:
 
+```bash
+chmod +x setup_database.sh
+./setup_database.sh
+```
 
 4. Compile and run the API server
 ```bash

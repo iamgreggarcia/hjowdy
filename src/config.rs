@@ -1,4 +1,3 @@
-use deadpool_postgres::Pool;
 use serde::Deserialize;
 
 use dotenv::dotenv;
@@ -28,6 +27,10 @@ impl Config {
             }),
             ..Default::default()
         };
-        Ok(Self { server_addr, pg, api_key })
+        Ok(Self {
+            server_addr,
+            pg,
+            api_key,
+        })
     }
 }

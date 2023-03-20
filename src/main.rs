@@ -1,21 +1,21 @@
 use actix_cors::Cors;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use chrono::Utc;
-use deadpool_postgres::Pool;
+
 use dotenv::dotenv;
 use handlers::{
-    add_message_handler, create_chat_handler, get_chats_handler, get_messages_by_chat_id_handler,get_messages_by_chat_id_endpoint,
-    get_messages_handler, update_chat_name_handler,delete_chat_handler,
+    add_message_handler, create_chat_handler, delete_chat_handler, get_chats_handler,
+    get_messages_by_chat_id_endpoint, get_messages_by_chat_id_handler, update_chat_name_handler,
 };
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json;
-use std::env;
+
 use std::error::Error;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+
 use tokio_postgres::NoTls;
 extern crate chrono;
 extern crate serde;
@@ -68,7 +68,7 @@ impl Error for OpenAIError {}
 
 #[derive(Debug, Clone)]
 enum OpenAIRequest<'a> {
-       ChatCompletion {
+    ChatCompletion {
         model: String,
         messages: &'a Vec<ChatCompletionMessage>,
         temperature: Option<f32>,
@@ -81,7 +81,6 @@ impl<'a> Serialize for OpenAIRequest<'a> {
         S: Serializer,
     {
         match self {
-           
             OpenAIRequest::ChatCompletion {
                 model,
                 messages,
@@ -113,7 +112,7 @@ async fn call_openai_api(
     println!("Request body: {:?}", req_body);
 
     let request_body = match input {
-                OpenAIRequest::ChatCompletion {
+        OpenAIRequest::ChatCompletion {
             model: _,
             messages,
             temperature: _,
@@ -143,7 +142,6 @@ async fn call_openai_api(
 
     Ok(response_text)
 }
-
 
 #[post("/chat/{chat_id}")]
 async fn chat(
@@ -198,15 +196,13 @@ async fn chat(
 
     let config = config::Config::from_env().unwrap();
 
-    let openai_response =
-        match call_openai_api(request, config.api_key , chat_url).await {
-            Ok(response) => response,
-            Err(e) => {
-                eprintln!("Error calling OpenAI API: {}", e);
-                String::from("Error calling OpenAI API")
-            }
-        };
-
+    let openai_response = match call_openai_api(request, config.api_key, chat_url).await {
+        Ok(response) => response,
+        Err(e) => {
+            eprintln!("Error calling OpenAI API: {}", e);
+            String::from("Error calling OpenAI API")
+        }
+    };
 
     let response_json: serde_json::Value = match serde_json::from_str(&openai_response) {
         Ok(val) => val,
@@ -238,7 +234,6 @@ async fn chat(
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
-
     let config = Config::from_env().unwrap();
     let pool = config.pg.create_pool(None, NoTls).unwrap();
 
@@ -249,12 +244,20 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .wrap(Cors::permissive())
             .service(chat)
-            .route("/create_chat/{app_user}", web::post().to(create_chat_handler))
+            .route(
+                "/create_chat/{app_user}",
+                web::post().to(create_chat_handler),
+            )
             .route("/chats/{app_user}", web::get().to(get_chats_handler))
-            .route("/chats/{chat_id}/messages", web::get().to(get_messages_by_chat_id_endpoint))
+            .route(
+                "/chats/{chat_id}/messages",
+                web::get().to(get_messages_by_chat_id_endpoint),
+            )
             .route("/update_chat_name", web::put().to(update_chat_name_handler))
-            .route("/delete_chat/{chat_id}", web::delete().to(delete_chat_handler))
-            
+            .route(
+                "/delete_chat/{chat_id}",
+                web::delete().to(delete_chat_handler),
+            )
     })
     .bind("127.0.0.1:8080")?
     .run()

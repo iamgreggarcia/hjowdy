@@ -1,7 +1,6 @@
+use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, PoolError};
 use tokio_pg_mapper::FromTokioPostgresRow;
-use chrono::{Utc, DateTime};
-use tokio_postgres::types::Date;
 
 use crate::errors::MyError;
 use crate::models::{Chat, Message};
@@ -60,7 +59,7 @@ pub async fn get_messages_by_chat_id(
     Ok(messages)
 }
 
-pub async fn get_chats(client: &Client, app_user:i32) -> Result<Vec<Chat>, MyError> {
+pub async fn get_chats(client: &Client, app_user: i32) -> Result<Vec<Chat>, MyError> {
     let _stmt = include_str!("../sql/get_chats.sql");
     let stmt = client
         .prepare(&_stmt)
@@ -68,20 +67,15 @@ pub async fn get_chats(client: &Client, app_user:i32) -> Result<Vec<Chat>, MyErr
         .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
 
     let chats = client
-        .query(
-            &stmt,
-            &[
-            &app_user,
-            ],
-            )
+        .query(&stmt, &[&app_user])
         .await?
         .iter()
         .map(|row| Chat::from_row_ref(row).unwrap())
         .collect::<Vec<Chat>>();
-        Ok(chats)
+    Ok(chats)
 }
 
-pub async fn create_chat(client: &Client, app_user:i32) -> Result<Chat, MyError> {
+pub async fn create_chat(client: &Client, app_user: i32) -> Result<Chat, MyError> {
     let _stmt = include_str!("../sql/create_chat.sql");
     let stmt = client
         .prepare(&_stmt)
@@ -127,7 +121,11 @@ pub async fn add_message(client: &Client, message_info: Message) -> Result<Messa
     })
 }
 
-pub async fn update_chat_name(client: &Client, chat_id: i32, new_chat_name: String) -> Result<(),MyError> {
+pub async fn update_chat_name(
+    client: &Client,
+    chat_id: i32,
+    new_chat_name: String,
+) -> Result<(), MyError> {
     let stmt = client
         .prepare(include_str!("../sql/update_chat_name.sql"))
         .await
@@ -140,4 +138,3 @@ pub async fn update_chat_name(client: &Client, chat_id: i32, new_chat_name: Stri
 
     Ok(())
 }
-

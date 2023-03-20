@@ -1,6 +1,5 @@
 use actix_cors::Cors;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
-use chat_history::ChatHistory;
 use chrono::Utc;
 use deadpool_postgres::Pool;
 use dotenv::dotenv;
@@ -23,7 +22,6 @@ extern crate serde;
 
 use crate::config::Config;
 
-mod chat_history;
 mod config;
 mod db;
 mod errors;
@@ -39,11 +37,6 @@ struct ChatPromptRequestBody {
 pub struct ChatCompletionMessage {
     role: String,
     content: String,
-}
-
-#[derive(Deserialize)]
-struct PromptRequestBody {
-    prompt: String,
 }
 
 #[derive(Debug)]
@@ -64,13 +57,6 @@ struct ChatRequestBody {
 }
 
 #[derive(Debug, Serialize)]
-struct TextRequestBody {
-    model: String,
-    prompt: String,
-    max_tokens: usize,
-}
-
-#[derive(Debug, Serialize)]
 struct OpenAIRequestChatCompletion {
     model: String,
     messages: Vec<ChatCompletionMessage>,
@@ -82,12 +68,7 @@ impl Error for OpenAIError {}
 
 #[derive(Debug, Clone)]
 enum OpenAIRequest<'a> {
-    TextCompletionPrompt {
-        model: String,
-        prompt: String,
-        max_tokens: usize,
-    },
-    ChatCompletion {
+       ChatCompletion {
         model: String,
         messages: &'a Vec<ChatCompletionMessage>,
         temperature: Option<f32>,
@@ -100,17 +81,7 @@ impl<'a> Serialize for OpenAIRequest<'a> {
         S: Serializer,
     {
         match self {
-            OpenAIRequest::TextCompletionPrompt {
-                model,
-                prompt,
-                max_tokens,
-            } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("model", model)?;
-                map.serialize_entry("prompt", prompt)?;
-                map.serialize_entry("max_tokens", max_tokens)?;
-                map.end()
-            }
+           
             OpenAIRequest::ChatCompletion {
                 model,
                 messages,
@@ -142,19 +113,7 @@ async fn call_openai_api(
     println!("Request body: {:?}", req_body);
 
     let request_body = match input {
-        OpenAIRequest::TextCompletionPrompt {
-            model: _,
-            prompt,
-            max_tokens,
-        } => {
-            let prompt = TextRequestBody {
-                model: "text-davinci-003".to_string(),
-                prompt,
-                max_tokens,
-            };
-            serde_json::to_vec(&prompt)?
-        }
-        OpenAIRequest::ChatCompletion {
+                OpenAIRequest::ChatCompletion {
             model: _,
             messages,
             temperature: _,
@@ -185,29 +144,6 @@ async fn call_openai_api(
     Ok(response_text)
 }
 
-#[post("/text_completion_prompt")]
-async fn text_completion_prompt(prompt_body: web::Json<PromptRequestBody>) -> impl Responder {
-    let text_url = "https://api.openai.com/v1/completions".to_string();
-    // Print that we are in the function
-    println!("In text_completion_prompt");
-
-    let request = OpenAIRequest::TextCompletionPrompt {
-        model: "text-davinci-003".to_string(),
-        prompt: prompt_body.prompt.clone(),
-        max_tokens: 300,
-    };
-
-    let openai_response =
-        match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), text_url).await {
-            Ok(response) => response,
-            Err(e) => {
-                eprintln!("Error calling OpenAI API: {}", e);
-                String::from("Error calling OpenAI API")
-            }
-        };
-
-    HttpResponse::Ok().body(openai_response)
-}
 
 #[post("/chat/{chat_id}")]
 async fn chat(
@@ -300,7 +236,6 @@ async fn chat(
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
-    let chat_history = web::Data::new(Arc::new(Mutex::new(ChatHistory::new())));
 
     let config = Config::from_env().unwrap();
     let pool = config.pg.create_pool(None, NoTls).unwrap();
@@ -309,10 +244,8 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     HttpServer::new(move || {
         App::new()
-            .app_data(chat_history.clone())
             .app_data(web::Data::new(pool.clone()))
             .wrap(Cors::permissive())
-            .service(text_completion_prompt)
             .service(chat)
             .route("/create_chat/{app_user}", web::post().to(create_chat_handler))
             .route("/chats/{app_user}", web::get().to(get_chats_handler))

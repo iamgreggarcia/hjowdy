@@ -196,8 +196,10 @@ async fn chat(
         temperature: Some(1.5),
     };
 
+    let config = config::Config::from_env().unwrap();
+
     let openai_response =
-        match call_openai_api(request, env::var("OPENAI_API_KEY").unwrap(), chat_url).await {
+        match call_openai_api(request, config.api_key , chat_url).await {
             Ok(response) => response,
             Err(e) => {
                 eprintln!("Error calling OpenAI API: {}", e);

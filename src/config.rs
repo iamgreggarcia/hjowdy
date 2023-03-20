@@ -8,12 +8,14 @@ use std::env;
 pub struct Config {
     pub server_addr: String,
     pub pg: deadpool_postgres::Config,
+    pub api_key: String,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
         dotenv().ok();
         let server_addr = env::var("SERVER_ADDR")?;
+        let api_key = env::var("OPENAI_API_KEY").unwrap();
         let pg = deadpool_postgres::Config {
             user: Some(env::var("PG.USER")?),
             password: Some(env::var("PG.PASSWORD")?),
@@ -26,6 +28,6 @@ impl Config {
             }),
             ..Default::default()
         };
-        Ok(Self { server_addr, pg })
+        Ok(Self { server_addr, pg, api_key })
     }
 }

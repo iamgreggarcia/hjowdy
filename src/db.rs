@@ -19,27 +19,6 @@ pub async fn delete_chat(client: &Client, chat_id: i32) -> Result<(), MyError> {
     Ok(())
 }
 
-pub async fn get_messages(client: &Client, message_info: Message) -> Result<Vec<Message>, MyError> {
-    let _stmt = include_str!("../sql/get_messages.sql");
-    let _stmt = _stmt.replace("$1", &message_info.chat_id_relation.to_string());
-    let stmt = client.prepare(&_stmt).await.unwrap();
-
-    client
-        .query(&stmt, &[&message_info.chat_id_relation])
-        .await?
-        .iter()
-        .map(|row| Message::from_row_ref(row).unwrap())
-        .collect::<Vec<Message>>()
-        .pop()
-        .map(|last_message| {
-            let mut messages = Vec::new();
-            messages.push(last_message);
-            messages.reverse();
-            messages
-        })
-        .ok_or(MyError::NotFound)
-}
-
 pub async fn get_messages_by_chat_id(
     client: &Client,
     chat_id: i32,

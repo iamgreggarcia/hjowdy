@@ -1,6 +1,5 @@
 use crate::db::{
-    add_message, create_chat, delete_chat, get_chats, get_messages, get_messages_by_chat_id,
-    update_chat_name,
+    add_message, create_chat, delete_chat, get_chats, get_messages_by_chat_id, update_chat_name,
 };
 use crate::errors::MyError;
 use crate::models::Message;
@@ -47,19 +46,6 @@ pub async fn get_chats_handler(
     let new_chat = get_chats(&client, *app_user).await?;
 
     Ok(HttpResponse::Ok().json(new_chat))
-}
-
-pub async fn get_messages_handler(
-    message: web::Json<Message>,
-    db_pool: web::Data<Pool>,
-) -> Result<HttpResponse, Error> {
-    let message_info: Message = message.into_inner();
-
-    let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
-
-    let new_message = get_messages(&client, message_info).await?;
-
-    Ok(HttpResponse::Ok().json(new_message))
 }
 
 pub async fn get_messages_by_chat_id_endpoint(

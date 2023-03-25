@@ -3,7 +3,7 @@ use serde::Deserialize;
 use dotenv::dotenv;
 use std::env;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct Config {
     pub server_addr: String,
     pub pg: deadpool_postgres::Config,

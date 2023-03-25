@@ -1,3 +1,12 @@
+mod handlers {
+    pub mod chat_handlers;
+    pub mod message_handlers;
+    pub mod image_handlers;
+}
+use handlers::chat_handlers;
+use handlers::message_handlers;
+use handlers::image_handlers;
+
 use actix_cors::Cors;
 use actix_web::body::BoxBody;
 use actix_web::body::EitherBody;
@@ -5,10 +14,6 @@ use actix_web::dev::ServiceFactory;
 use actix_web::{dev::ServiceRequest, dev::ServiceResponse, Error};
 use actix_web::{post, web, App, HttpResponse, Responder};
 use chrono::Utc;
-pub use handlers::{
-    add_message_handler, create_chat_handler, delete_chat_handler, get_chats_handler,
-    get_messages_by_chat_id_endpoint, get_messages_by_chat_id_handler, update_chat_name_handler,
-};
 use reqwest::header::{HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use serde::ser::SerializeMap;
@@ -22,7 +27,6 @@ extern crate serde;
 pub mod config;
 pub mod db;
 pub mod errors;
-pub mod handlers;
 pub mod models;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -160,11 +164,11 @@ async fn chat(
         };
 
         // Call the add_message_handler function
-        let message_result = add_message_handler(db_pool.clone(), web::Json(new_message)).await;
+        let message_result = message_handlers::add_message_handler(db_pool.clone(), web::Json(new_message)).await;
         println!("Message result: {:?}", message_result);
     }
 
-    let messages = match get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await {
+    let messages = match message_handlers::get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await {
         Ok(messages) => messages,
         Err(e) => {
             eprintln!("Error getting messages: {}", e);
@@ -221,7 +225,7 @@ async fn chat(
         chat_id_relation: chat_id_value,
     };
 
-    let ai_message_result = add_message_handler(db_pool.clone(), web::Json(ai_message)).await;
+    let ai_message_result = message_handlers::add_message_handler(db_pool.clone(), web::Json(ai_message)).await;
     println!("AI message result: {:?}", ai_message_result);
 
     HttpResponse::Ok().body(openai_response)
@@ -229,6 +233,7 @@ async fn chat(
 
 pub fn create_app(
     pool: deadpool_postgres::Pool,
+    config: config::Config,
 ) -> App<
     impl ServiceFactory<
         ServiceRequest,
@@ -240,20 +245,25 @@ pub fn create_app(
 > {
     App::new()
         .app_data(web::Data::new(pool))
+        .app_data(web::Data::new(config))
         .wrap(Cors::permissive())
         .service(chat)
         .route(
             "/create_chat/{app_user}",
-            web::post().to(create_chat_handler),
-        )
-        .route("/chats/{app_user}", web::get().to(get_chats_handler))
+            web::post().to(chat_handlers::create_chat_handler),
+            )
+        .route("/chats/{app_user}", web::get().to(chat_handlers::get_chats_handler))
         .route(
             "/chats/{chat_id}/messages",
-            web::get().to(get_messages_by_chat_id_endpoint),
-        )
-        .route("/update_chat_name", web::put().to(update_chat_name_handler))
+            web::get().to(message_handlers::get_messages_by_chat_id_endpoint),
+            )
+        .route("/update_chat_name", web::put().to(chat_handlers::update_chat_name_handler))
         .route(
             "/delete_chat/{chat_id}",
-            web::delete().to(delete_chat_handler),
-        )
+            web::delete().to(chat_handlers::delete_chat_handler),
+            )
+        .route(
+            "/images/generations",
+            web::post().to(image_handlers::generate_image),
+            )
 }

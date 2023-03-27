@@ -1,3 +1,4 @@
+use crate::db;
 use actix_web::{web, HttpResponse, Responder};
 use serde::Deserialize;
 use reqwest::header::{HeaderValue, CONTENT_TYPE, AUTHORIZATION};
@@ -6,6 +7,7 @@ use serde_json::json;
 
 #[derive(Debug, Deserialize)]
 pub struct ImageGenerationRequest {
+    chat_id: i32,
     prompt: String,
     n: Option<u32>,
     size: Option<String>,
@@ -15,7 +17,9 @@ pub struct ImageGenerationRequest {
 pub async fn generate_image(
     image_generation_request: web::Json<ImageGenerationRequest>,
     config: web::Data<crate::config::Config>,
-) -> Result<impl Responder, actix_web::Error> {
+    pool: web::Data<deadpool_postgres::Pool>,
+    ) -> Result<impl Responder, actix_web::Error> {
+    println!("{:?}", image_generation_request);
     let client = Client::new();
     let url = "https://api.openai.com/v1/images/generations";
 
@@ -46,6 +50,19 @@ pub async fn generate_image(
         let body = response.text().await.map_err(|e| {
             actix_web::error::InternalError::new(e, actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
         })?;
+
+        let json_body: serde_json::Value = serde_json::from_str(&body)?;
+        let image_url = json_body["data"][0]["url"].as_str().unwrap_or_default().to_string();
+        let chat_id = image_generation_request.chat_id;
+
+        let client = pool.get().await.map_err(|e| {
+            actix_web::error::InternalError::new(e, actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+        })?;
+
+        db::save_generated_image(&client, chat_id, image_url).await.map_err(|e| {
+            actix_web::error::InternalError::new(e, actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+        })?;
+
         Ok(HttpResponse::Ok().body(body))
     } else {
 

@@ -3,7 +3,7 @@ use deadpool_postgres::{Client, PoolError};
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 use crate::errors::MyError;
-use crate::models::{Chat, Message};
+use crate::models::{Chat, Message, Image};
 
 pub async fn delete_chat(client: &Client, chat_id: i32) -> Result<(), MyError> {
     let stmt = client
@@ -116,4 +116,26 @@ pub async fn update_chat_name(
         .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
 
     Ok(())
+}
+
+pub async fn save_generated_image(client: &Client, chat_id: i32, url: String) -> Result<Image, MyError> {
+    let _stmt = include_str!("../sql/save_generated_image.sql");
+    let stmt = client
+        .prepare(&_stmt)
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    let created_on: DateTime<Utc> = Utc::now();
+
+    let row = client
+        .query_one(&stmt, &[&chat_id, &url, &created_on])
+        .await
+        .map_err(|e| MyError::PoolError(PoolError::Backend(e)))?;
+
+    Ok(Image {
+        id: row.get(0),
+        chat_id: row.get(1),
+        url: row.get(2),
+        created_on: row.get(3),
+    })
 }

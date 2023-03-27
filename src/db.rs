@@ -19,6 +19,26 @@ pub async fn delete_chat(client: &Client, chat_id: i32) -> Result<(), MyError> {
     Ok(())
 }
 
+pub async fn get_images_by_chat_id(client: &Client, chat_id: i32) -> Result<Vec<Image>, MyError> {
+    let statement = client
+        .prepare("SELECT id, chat_id, url, created_on FROM generated_images WHERE chat_id = $1")
+        .await?;
+
+    let rows = client.query(&statement, &[&chat_id]).await?;
+
+    let images = rows
+        .iter()
+        .map(|row| Image {
+            id: row.get(0),
+            chat_id: row.get(1),
+            url: row.get(2),
+            created_on: row.get(3),
+        })
+        .collect::<Vec<Image>>();
+
+    Ok(images)
+}
+
 pub async fn get_messages_by_chat_id(
     client: &Client,
     chat_id: i32,
@@ -117,6 +137,7 @@ pub async fn update_chat_name(
 
     Ok(())
 }
+
 
 pub async fn save_generated_image(client: &Client, chat_id: i32, url: String) -> Result<Image, MyError> {
     let _stmt = include_str!("../sql/save_generated_image.sql");

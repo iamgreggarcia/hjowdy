@@ -4,6 +4,8 @@ use serde::Deserialize;
 use reqwest::header::{HeaderValue, CONTENT_TYPE, AUTHORIZATION};
 use reqwest::Client;
 use serde_json::json;
+use crate::models::Image;
+use deadpool_postgres::Pool;
 
 #[derive(Debug, Deserialize)]
 pub struct ImageGenerationRequest {
@@ -12,6 +14,24 @@ pub struct ImageGenerationRequest {
     n: Option<u32>,
     size: Option<String>,
     response_format: Option<String>,
+}
+
+pub async fn get_images_by_chat_id(
+    chat_id: web::Path<i32>,
+    pool: web::Data<Pool>,
+) -> Result<impl Responder, actix_web::Error> {
+    let chat_id = chat_id.into_inner();
+    let client = pool.get().await.map_err(|e| {
+        actix_web::error::InternalError::new(e, actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+    })?;
+
+    let images: Vec<Image> = db::get_images_by_chat_id(&client, chat_id)
+        .await
+        .map_err(|e| {
+            actix_web::error::InternalError::new(e, actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+        })?;
+
+    Ok(HttpResponse::Ok().json(images))
 }
 
 pub async fn generate_image(

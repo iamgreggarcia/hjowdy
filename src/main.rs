@@ -5,12 +5,11 @@ use tokio_postgres::NoTls;
 extern crate chrono;
 extern crate serde;
 
-use crate::config::Config;
+use hjowdy::config::Config;
 
 mod config;
 mod db;
 mod errors;
-mod handlers;
 mod models;
 
 #[actix_web::main]
@@ -22,7 +21,7 @@ async fn main() -> std::io::Result<()> {
 
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    HttpServer::new(move || create_app(pool.clone()))
+    HttpServer::new(move || create_app(pool.clone(), config.clone()))
         .bind("127.0.0.1:8080")?
         .run()
         .await

@@ -21,3 +21,12 @@ pub struct Message {
     pub content: String,
     pub chat_id_relation: i32,
 }
+
+#[derive(Serialize, Deserialize, PostgresMapper)]
+#[pg_mapper(table = "images")]
+pub struct Image {
+    pub id: i32,
+    pub chat_id: i32,
+    pub url: String,
+    pub created_on: DateTime<Utc>,
+}

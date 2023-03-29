@@ -119,7 +119,7 @@ async fn call_openai_api(
             temperature: _,
         } => {
             let prompt = ChatRequestBody {
-                model: "gpt-3.5-turbo-0301".to_string(),
+                model: "gpt-4".to_string(),
                 messages: messages.clone(),
                 temperature: Some(1.2),
                 max_tokens: Some(1000),
@@ -190,7 +190,7 @@ async fn chat(
     println!("Chat completion: {:?}", chat_completion.messages);
 
     let request = OpenAIRequest::ChatCompletion {
-        model: "gpt-3.5-turbo-0301".to_string(),
+        model: "gpt-4".to_string(),
         messages: &openai_messages,
         temperature: Some(1.5),
     };
@@ -201,7 +201,7 @@ async fn chat(
         Ok(response) => response,
         Err(e) => {
             eprintln!("Error calling OpenAI API: {}", e);
-            String::from("Error calling OpenAI API")
+            return HttpResponse::InternalServerError().body("Error calling OpenAI API");
         }
     };
 
@@ -209,19 +209,22 @@ async fn chat(
         Ok(val) => val,
         Err(e) => {
             eprintln!("Error parsing JSON: {}", e);
-            return HttpResponse::InternalServerError().finish();
+            return HttpResponse::InternalServerError().body("Error parsing JSON");
         }
     };
+
     let content = response_json["choices"][0]["message"]["content"]
         .as_str()
-        .ok_or("Error getting content")
-        .unwrap_or_else(|_| "No summary found.");
+        .ok_or_else(|| {
+            eprintln!("Error getting response from OpenAI API");
+            HttpResponse::InternalServerError().body("Error getting response from OpenAI API")
+        });
 
     let ai_message = models::Message {
         id: None,
         created_on: Utc::now(),
         role: "assistant".to_string(),
-        content: content.to_string(),
+        content: content.unwrap().to_string(),
         chat_id_relation: chat_id_value,
     };
 
@@ -234,14 +237,14 @@ async fn chat(
 pub fn create_app(
     pool: deadpool_postgres::Pool,
     config: config::Config,
-) -> App<
-    impl ServiceFactory<
-        ServiceRequest,
-        Config = (),
-        Response = ServiceResponse<EitherBody<BoxBody>>,
-        Error = Error,
-        InitError = (),
-    >,
+    ) -> App<
+impl ServiceFactory<
+ServiceRequest,
+Config = (),
+Response = ServiceResponse<EitherBody<BoxBody>>,
+Error = Error,
+InitError = (),
+>,
 > {
     App::new()
         .app_data(web::Data::new(pool))

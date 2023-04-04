@@ -144,45 +144,64 @@ async fn call_openai_api(
     Ok(response_text)
 }
 
+async fn add_and_save_message(
+    message: &ChatCompletionMessage,
+    chat_id_value: i32,
+    db_pool: &web::Data<deadpool_postgres::Pool>,
+) -> Result<(), Box<dyn StdError>> {
+    // Convert the message to the Message format
+    let new_message = models::Message {
+        id: None,
+        created_on: Utc::now(),
+        role: message.role.clone(),
+        content: message.content.clone(),
+        chat_id_relation: chat_id_value,
+    };
+
+    // Call the add_message_handler function
+    message_handlers::add_message_handler(db_pool.clone(), web::Json(new_message)).await?;
+
+    Ok(())
+}
+
+async fn get_consolidated_messages(
+    chat_id_value: i32,
+    db_pool: &web::Data<deadpool_postgres::Pool>,
+    ) -> Result<Vec<ChatCompletionMessage>, Box<dyn StdError>> {
+    let messages = message_handlers::get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await?;
+
+    Ok(messages
+       .into_iter()
+       .map(|msg| ChatCompletionMessage {
+           role: msg.role,
+           content: msg.content,
+       })
+       .collect())
+}
+
 #[post("/chat/{chat_id}")]
 async fn chat(
     chat_id: web::Path<i32>,
     chat_completion: web::Json<ChatPromptRequestBody>,
     db_pool: web::Data<deadpool_postgres::Pool>,
-) -> impl Responder {
+    ) -> impl Responder {
     let chat_id_value = chat_id.into_inner();
 
     // Get the last message from the request
     if let Some(message) = chat_completion.messages.last() {
-        // Convert the message to the Message format
-        let new_message = models::Message {
-            id: None,
-            created_on: Utc::now(),
-            role: message.role.clone(),
-            content: message.content.clone(),
-            chat_id_relation: chat_id_value,
-        };
-
-        // Call the add_message_handler function
-        let message_result = message_handlers::add_message_handler(db_pool.clone(), web::Json(new_message)).await;
-        println!("Message result: {:?}", message_result);
+        if let Err(e) = add_and_save_message(message, chat_id_value, &db_pool).await {
+            eprintln!("Error while adding and saving the message: {}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
     }
 
-    let messages = match message_handlers::get_messages_by_chat_id_handler(db_pool.clone(), chat_id_value).await {
+    let openai_messages = match get_consolidated_messages(chat_id_value, &db_pool).await {
         Ok(messages) => messages,
         Err(e) => {
             eprintln!("Error getting messages: {}", e);
             return HttpResponse::InternalServerError().finish();
         }
     };
-
-    let openai_messages = messages
-        .into_iter()
-        .map(|msg| ChatCompletionMessage {
-            role: msg.role,
-            content: msg.content,
-        })
-        .collect::<Vec<ChatCompletionMessage>>();
 
     let chat_url = "https://api.openai.com/v1/chat/completions".to_string();
 

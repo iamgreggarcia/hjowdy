@@ -1,17 +1,32 @@
- Welcome to **hjowdy**, a Rust API for interacting with the OpenAI chat completion API. Follow the trail below to get started with some good ol' fashioned Rust programming. Yeehaw! 🤠 🐴
+# hjowdy
 
-## 🌟 Setup Instructions
+A Rust API for interacting with the OpenAI chat completion API.
+
+## Overview
+
+**hjowdy** is a simple Rust API designed to interact with the OpenAI chat API.  The API stores chat history and messages in a PostgreSQL database.
+
+## Usage
+
+### Setup Instructions
+
 1. Clone the repository
 
 ```bash
 git clone https://github.com/example/hjowdy.git
 ```
 
-2. Install Rust
+2. Install Rust and Cargo from the [official website](https://www.rust-lang.org/tools/install).
 
-Make sure Rust and Cargo are installed on yer system. If they ain't, go ahead and rustle 'em up [here](https://www.rust-lang.org/tools/install).
+3. Follow the Database and Environment Variables section, provided below, to set up PostgreSQL and configure necessary environment variables.
 
-## Database and Environment Variables 🗃️
+4. Compile and run the API server
+
+```bash
+cargo run
+```
+
+### Database and Environment Variables 🗃️
 
 **hjowdy** uses PostgreSQL as the database to store chat and message history. To set it up, follow these steps:
 
@@ -40,13 +55,13 @@ chmod +x setup_database.sh
 ./setup_database.sh
 ```
 
-4. Compile and run the API server
-```bash
-cargo run
-```
+## Examples
 
-## 🏃 Example CURL Requests
-Here are some example CURL requests to help ya get started:
+Refer to the Example CURLs section below for some examples of how to make requests to the API.
+
+### Example CURLs
+
+Here are some example CURL requests to help you get started:
 
 1. Create a chat
 
@@ -58,10 +73,12 @@ curl -X POST "http://localhost:8080/create_chat/1"
 ```bash
 curl -X POST "http://localhost:8080/chat/1" \
 -H "Content-Type: application/json" \
--d '{"messages": [{"role": "user", "content": "Hello, partner!"}]}'
+-d '{"messages": [{"role": "user", "content": "Hello!"}]}'
 ```
-## 📚 API Specification
-### Endpoints
+
+### API Specification
+
+#### Endpoints
 
 - `POST /create_chat/{app_user}` - Creates a new chat
 - `GET /chats/{app_user}` - Retrieves all chats for the specified user
@@ -72,7 +89,7 @@ curl -X POST "http://localhost:8080/chat/1" \
 
 ### Request and Response Examples
 
-To interact with the API, send JSON payloads in the request body. For instance, when calling the `/chat/{chat_id}` endpoint, the request body should look like this:
+To interact with the API, send JSON payloads in the request body. For example, when calling the `/chat/{chat_id}` endpoint, the request body should look like this:
 
 ```json
 {
@@ -89,22 +106,20 @@ To interact with the API, send JSON payloads in the request body. For instance, 
 }
 ```
 
-
 The API will return a JSON object containing the chatbot's response. In the example above, the response might look like this:
 
 ```json
 {
-
     "id": "chatcmpl-6p9XYPYSTTRi0xEviKjjilqrWU2Ve",
-        "object": "chat.completion",
-        "created": 1677649420,
-        "model": "gpt-3.5-turbo-0301",
-        "usage": {
-            "prompt_tokens": 56,
-            "completion_tokens": 31,
-            "total_tokens": 87
-        },
-        "choices": [
+    "object": "chat.completion",
+    "created": 1677649420,
+    "model": "gpt-3.5-turbo-0301",
+    "usage": {
+        "prompt_tokens": 56,
+        "completion_tokens": 31,
+        "total_tokens": 87
+    },
+    "choices": [
         {
             "message": {
                 "role": "assistant",
@@ -113,19 +128,20 @@ The API will return a JSON object containing the chatbot's response. In the exam
             "finish_reason": "stop",
             "index": 0
         }
-        ]
+    ]
 }
 ```
 
-# 🌱 Contributin'
-1. If you feel like contributin', I'd be happier than a tornado in a trailer park. 🌪️
-2. Fork the repository 🍴
-3. Create a new branch with yer feature or bugfix 🌿
-4. Commit changes (with some top-notch, dandy commit messages) 📝
-5. Push yer branch to that remote fork 🔌
-6. Submit a pull request back to the original repository 🤲
+## Contributing
 
-# 📚 Learnin' More
-If you're hankerin' for more knowledge, check out the [OpenAI API documentation](https://platform.openai.com/docs/guides/chat).
+1. Fork the repository 🍴
+2. Create a new branch with your feature or bugfix 🌿
+3. Commit changes with descriptive commit messages 📝
+4. Push your branch to the remote fork 🔌
+5. Submit a pull request back to the original repository 🤲
 
-Happy trails, partner! 🌄
+For more information, check out the [OpenAI API documentation](https://platform.openai.com/docs/guides/chat).
+
+Good luck! 🌄
+
+```
